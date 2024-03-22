@@ -88,7 +88,6 @@ CREATE TABLE vendas (
         REFERENCES estoque(produto)
         ON DELETE CASCADE
 );
-
 ```
 
 Perceba que ao estabelecermos um relacionamento entre duas chaves primárias, como ocorre entre *estoque* 
@@ -98,7 +97,8 @@ indiretamente com a tabela *produtos*, é de um para muitos (1:N ou ono-to-many)
 coluna 'produto' como uma chave estrangeira, a única restrição que colocamos para ela é de não nulidade. Desta forma,
 poderemos ter vários registros em vendas, relacionados a um único produto.
 
-## Criando uma lógica reutilizável
+## Criando lógicas reutilizáveis
+
  As linguagens procedurais para banco de dados, além de facilitarem o fluxo de programas, como dito anteriormente, também 
 permitem que, ao elaborarmos uma lógica, ela possa ser reutilizada em outros trechos de código. Vamos então criar uma lógica
  para calcular o preço final do produto a partir da quantidade de produtos adquiridos para estoque, o custo total da aquisição 
@@ -116,7 +116,62 @@ CREATE OR REPLACE FUNCTION calcular_preco(quantidade INTEGER, custo NUMERIC, luc
         END;
     $$ LANGUAGE plpgsql;
 ```
-Muito simples.
+
+Também vamos desenvolver uma função para calcular o valor de uma venda com base na quantidade vendida e no desconto
+atribuído.
+
+```sql
+CREATE OR REPLACE FUNCTION calcular_valor_da_venda(preco NUMERIC, quantidade INTEGER, desconto NUMERIC DEFAULT NULL)
+    RETURNS NUMERIC AS $$
+        DECLARE
+            valor NUMERIC;
+        BEGIN
+            IF desconto IS NOT NULL
+                THEN
+                valor := preco - (preco * (desconto / 100));
+                valor := valor * quantidade;
+            ELSE
+                valor := preco * quantidade;
+            END IF;
+            RETURN ROUND(valor, 2);
+        END;
+    $$ LANGUAGE plpgsql;
+```
+
+Ótimo! Agora temos códigos que nos auxiliarão mais adiante. Perceba que na função calcular_valor_da_venda(), temos um 
+parâmetro que declaramos com um valor DEFAULT NULL e como utilizamos ele para realizar calculos diferentes. 
+
+Vamos calcular o preço final de 100 unidades de um produto, com o custo de 100 reais e com uma margem de lucro de 50% por
+unidade:
+
+```shell
+laboratorio=# SELECT * FROM calcular_preco(100, 100, 50);
+ calcular_preco
+----------------
+           1.50
+(1 registro)
+```
+
+Agora, vamos calcular o valor da venda de 2 unidade de um produto com o preço de 1,50 reais, primeiramente, sem desconto 
+e em seguida com 5% de desconto:
+
+```shell
+laboratorio=# SELECT * FROM calcular_valor_da_venda(1.5, 2);
+ calcular_valor_da_venda
+-------------------------
+                    3.00
+(1 registro)
+```
+
+```shell
+laboratorio=# SELECT * FROM calcular_valor_da_venda(1.5, 2, 5);
+ calcular_valor_da_venda
+-------------------------
+                    2.85
+(1 registro)
+```
+
+Tudo funcionando até aqui, vamos seguir adiante.
 
 ## Triggers & funções triggers
 
@@ -140,6 +195,7 @@ CREATE TRIGGER trigger_create_produto
     FOR EACH ROW
     EXECUTE FUNCTION criar_produto();
 ```
+
 Com estes dispositivos, toda a vez que inserirmos um novo produto no *estoque*, ele será registrado em *produtos*, observe
 como utilizamos a nossa função **calcular_preco()** para deixar o nosso código mais claro.
 
@@ -162,7 +218,8 @@ CREATE TRIGGER trigger_quantidade_em_estoque
     FOR EACH ROW
     EXECUTE FUNCTION atualizar_quantidade_em_estoque();
 ```
-Pronto, lógica implementada, agora vamos seguir adiante.
+
+Pronto, lógica implementada, vamos em frente.
 
 ## Tratamento de exceções
 
@@ -172,6 +229,7 @@ se o programa que for utilizar o nosso banco de dados, tentar realizar a operaç
 pelo nosso banco. Se imaginarmos que esse erro poderá gerar problemas de execução mais a frente, seria inteligente de nossa
 parte, tomarmos alguma precaução desde agora. Por isso, ao invés de permitir que uma exceção seja levantada, vamos 
 retornar um valor que possa ser computado, como um booleano, por exemplo. 
+
 ```sql
 CREATE OR REPLACE FUNCTION registrar_produto_no_estoque(_produto VARCHAR, _quantidade INTEGER, _custo NUMERIC, _lucro NUMERIC, _data DATE)
     RETURNS BOOLEAN AS $$
@@ -186,7 +244,9 @@ CREATE OR REPLACE FUNCTION registrar_produto_no_estoque(_produto VARCHAR, _quant
         END;
     $$ LANGUAGE plpgsql;
 ```
+
 Agora podemos, inclusive, realizar alguns testes para verificar se nosso gatilho está funcionando.
+
 ```shell
 laboratorio=# SELECT * FROM registrar_produto_no_estoque('abacate', 100, 100, 10, '2024-03-21');
  registrar_produto_no_estoque
@@ -194,7 +254,9 @@ laboratorio=# SELECT * FROM registrar_produto_no_estoque('abacate', 100, 100, 10
  true
 (1 registro)
 ```
+
 Se tentarmos uma inserção de um produto com o mesmo nome, receberemos um *false*.
+
 ```shell
 laboratorio=# SELECT * FROM registrar_produto_no_estoque('abacate', 100, 100, 10, '2024-03-21');
  registrar_produto_no_estoque
@@ -202,7 +264,9 @@ laboratorio=# SELECT * FROM registrar_produto_no_estoque('abacate', 100, 100, 10
  false
 (1 registro)
 ```
+
 Somente um registro foi gerado em *estoque*.
+
 ```shell
 laboratorio=# SELECT * FROM estoque;
  produto | quantidade | custo  | lucro |    data
@@ -211,7 +275,9 @@ laboratorio=# SELECT * FROM estoque;
 (2 registros)
 
 ```
+
 Também foi criado um registro em *produtos*.
+
 ```shell
 laboratorio=# SELECT * FROM produtos;
   nome   | preco
@@ -222,7 +288,94 @@ laboratorio=# SELECT * FROM produtos;
 
 ## Declarando e utilizando variáveis
 
-Ótimo! Agora vamos realizar uma inserção em vendas para verificar a nossa lógica de atualização de estoque. Aqui nós vamos
-trabalhar com variáveis e recuperação de dados. Vamos conhecer também o sinal de atribuição utilizado em PL/pgSQL.
+Precisamos realizar alguns registros em vendas para testarmos se a lógica que implementamos anteriormente está funcionando.
+Lembre-se que, toda a vez que uma venda for registrada, a quantidade de produto vendida, será decrementada do estoque. Porém,
+não queremos que a venda seja registrada se não houver uma quantidade de produto suficiente para cobrir o pedido. Uma forma
+de realizar esta verificação seria realizar uma busca pelo produto no estoque, verificar se a quantidade disponível é suficiente 
+para cobrir a venda e atribuir um valor booleano em uma variável que servirá de condição para a realização do registro em
+*vendas*. Vejamos como podemos fazer isso:
+
+```sql
+CREATE OR REPLACE FUNCTION registrar_venda(_produto VARCHAR, _quantidade INTEGER, desconto NUMERIC DEFAULT NULL)
+    RETURNS BOOLEAN AS $$
+        DECLARE
+            existe BOOLEAN;
+            _preco NUMERIC;
+        BEGIN
+            SELECT p.preco, TRUE INTO _preco, existe
+                FROM produtos p
+                JOIN estoque e ON e.produto = p.nome
+                WHERE e.produto = _produto AND e.quantidade >= _quantidade;
+            IF existe
+                THEN
+                    INSERT INTO vendas (produto, quantidade, valor)
+                        VALUES (_produto, _quantidade, calcular_valor_da_venda(_preco, _quantidade, desconto));
+                    RETURN TRUE;
+            END IF;
+            RETURN FALSE;
+        END;
+    $$ LANGUAGE plpgsql;
+```
+
+Nesta função, recebemos como parâmetros, o produto, a quantidade e o desconto pode ou não ser atribuído. 
+Declaramos duas variáveis onde armazenaremos os dados referentes ao produto de que se trata a venda. Realizamos uma 
+consulta e utilizamos a cláusula INTO para fazer as atribuições que necessitamos. Como temos tabelas que se relacionam 
+entre si (*estoque* e *produtos*), fazemos um JOIN entre as duas para estabelecermos uma correspondência entre os 
+atributos que recebemos e os dados que temos em nosso banco de dados. Em seguida, condicionamos o registro em vendas em 
+bloco IF, retornando TRUE se a ação for executada com sucesso ou FALSE caso o bloco if não seja executado.
+
+Talvez esta seja a mais complicada função entre os nossos execícios. Vamos realizar alguns testes para verificar se temos
+tudo funcionando como esperamos. 
+
+Primeiro vamos realizar uma consulta no produto para verificarmos seus dados em estoque.
+
+```shell
+laboratorio=# SELECT e.produto, e.quantidade, e.custo, e.lucro, p.preco FROM estoque as e JOIN produtos as p ON e.produto = p.nome WHERE produto = 'laranja';
+ produto | quantidade | custo  | lucro | preco
+---------+------------+--------+-------+-------
+ laranja |        464 | 750.00 |    35 |  2.03
+(1 registro)
+```
+
+Agora, vamos vender 24 laranjas, sem desconto:
+
+```shell
+laboratorio=# SELECT * FROM registrar_venda('laranja', 24);
+ registrar_venda
+-----------------
+ true
+(1 registro)
+```
+
+Em seguida, a mesma venda, mas com 7% de desconto:
+
+```shell
+laboratorio=# SELECT * FROM registrar_venda('laranja', 24, 7);
+ registrar_venda
+ -----------------
+ true
+(1 registro)
+```
+
+E a quantidade de laranja em estoque foi atualizada como esperávamos.
+
+```shell
+laboratorio=# SELECT e.produto, e.quantidade, e.custo, e.lucro, p.preco FROM estoque as e JOIN produtos as p ON e.produto = p.nome WHERE produto = 'laranja';
+ produto | quantidade | custo  | lucro | preco
+---------+------------+--------+-------+-------
+ laranja |        416 | 750.00 |    35 |  2.03
+(1 registro)
+```
+
+Também podemos verificar que o desconto por unidade foi aplicado na segunda venda.
+
+```shell
+laboratorio=# SELECT p.nome as "produto", v.data, v.quantidade, v.valor FROM vendas as v JOIN produtos as p ON v.produto = p.nome WHERE v.produto = 'laranja';
+ produto |    data    | quantidade | valor
+---------+------------+------------+-------
+ laranja | 2024-03-22 |         24 | 48.72
+ laranja | 2024-03-22 |         24 | 45.31
+(2 registros)
+```
 
 <hr/>

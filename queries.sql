@@ -95,8 +95,28 @@ CREATE OR REPLACE FUNCTION calcular_preco(quantidade INTEGER, custo NUMERIC, luc
     $$ LANGUAGE plpgsql;
 
 /*########           TESTES           ########*/
-SELECT * FROM calcular_preco(100, 100, 10);
+SELECT * FROM calcular_preco(100, 100, 50);
 
+/*---------------------------------------------------------------------------------------------------------------------
+                                    FUNÇÃO calcular_valor_da_venda
+---------------------------------------------------------------------------------------------------------------------*/
+CREATE OR REPLACE FUNCTION calcular_valor_da_venda(preco NUMERIC, quantidade INTEGER, desconto NUMERIC DEFAULT NULL)
+    RETURNS NUMERIC AS $$
+        DECLARE
+            valor NUMERIC;
+        BEGIN
+            IF desconto IS NOT NULL
+                THEN
+                valor := preco - (preco * (desconto / 100));
+                valor := valor * quantidade;
+            ELSE
+                valor := preco * quantidade;
+            END IF;
+            RETURN ROUND(valor, 2);
+        END;
+    $$ LANGUAGE plpgsql;
+
+SELECT * FROM calcular_valor_da_venda(1.5, 2);
 /*---------------------------------------------------------------------------------------------------------------------
                                     FUNÇÃO registrar_produto_no_estoque
 ---------------------------------------------------------------------------------------------------------------------*/
@@ -115,7 +135,7 @@ CREATE OR REPLACE FUNCTION registrar_produto_no_estoque(_produto VARCHAR, _quant
     $$ LANGUAGE plpgsql;
 
 /*########           TESTES           ########*/
-SELECT * FROM registrar_produto_no_estoque('abacate', 100, 100, 10, '2024-03-21');
+SELECT * FROM registrar_produto_no_estoque('laranja', 500, 750, 35, '2024-03-21');
 
 SELECT * FROM estoque;
 
@@ -130,18 +150,20 @@ SELECT e.produto, e.quantidade, e.custo, e.lucro, p.preco
                                     FUNÇÃO registrar_venda
 ---------------------------------------------------------------------------------------------------------------------*/
 
-CREATE OR REPLACE FUNCTION registrar_venda(_produto VARCHAR, _quantidade INTEGER)
+CREATE OR REPLACE FUNCTION registrar_venda(_produto VARCHAR, _quantidade INTEGER, desconto NUMERIC DEFAULT NULL)
     RETURNS BOOLEAN AS $$
         DECLARE
             existe BOOLEAN;
             _preco NUMERIC;
         BEGIN
-            SELECT preco INTO _preco FROM produtos WHERE nome = _produto;
-            SELECT TRUE INTO existe FROM estoque WHERE produto = _produto AND quantidade >= _quantidade;
+            SELECT p.preco, TRUE INTO _preco, existe
+                FROM produtos p
+                JOIN estoque e ON e.produto = p.nome
+                WHERE e.produto = _produto AND e.quantidade >= _quantidade;
             IF existe
                 THEN
                     INSERT INTO vendas (produto, quantidade, valor)
-                        VALUES (_produto, _quantidade, (_quantidade * _preco));
+                        VALUES (_produto, _quantidade, calcular_valor_da_venda(_preco, _quantidade, desconto));
                     RETURN TRUE;
             END IF;
             RETURN FALSE;
@@ -149,16 +171,40 @@ CREATE OR REPLACE FUNCTION registrar_venda(_produto VARCHAR, _quantidade INTEGER
     $$ LANGUAGE plpgsql;
 
 /*########           TESTES           ########*/
-SELECT * FROM registrar_venda('banana', 2);
+SELECT * FROM registrar_venda('laranja', 24);
+SELECT * FROM registrar_venda('laranja', 24, 7);
 
-SELECT * FROM produtos;
 
-SELECT p.nome as "produto", v.data, v.quantidade, v.valor
-    FROM vendas as v
-    JOIN produtos as p
-    ON v.produto = p.nome;
+SELECT p.nome as "produto", v.data, v.quantidade, v.valor FROM vendas as v JOIN produtos as p ON v.produto = p.nome WHERE v.produto = 'laranja';
 
-SELECT e.produto, e.quantidade, e.custo, e.lucro, p.preco
-    FROM estoque as e
-    JOIN produtos as p
-    ON e.produto = p.nome;
+SELECT e.produto, e.quantidade, e.custo, e.lucro, p.preco FROM estoque as e JOIN produtos as p ON e.produto = p.nome WHERE produto = 'laranja';
+
+SELECT * FROM selecionar_produto_em_estoque('abacate');
+
+/*---------------------------------------------------------------------------------------------------------------------
+                                    FUNÇÃO selecionar_produto_em_estoque
+---------------------------------------------------------------------------------------------------------------------*/
+CREATE OR REPLACE FUNCTION selecionar_produto_em_estoque(_produto VARCHAR DEFAULT NULL)
+    RETURNS TABLE (produto VARCHAR, quantidade INTEGER, custo NUMERIC, lucro NUMERIC, preco NUMERIC) AS $$
+        BEGIN
+            IF _produto IS NOT NULL
+                THEN
+                    RETURN QUERY
+                        SELECT e.produto, e.quantidade, e.custo, e.lucro, p.preco
+                            FROM estoque e
+                            JOIN produtos p
+                            ON e.produto = p.nome
+                        WHERE e.produto = _produto;
+            ELSE
+                RETURN QUERY
+                    SELECT e.produto, e.quantidade, e.custo, e.lucro, p.preco
+                        FROM estoque e
+                        JOIN produtos p
+                        ON e.produto = p.nome
+                    ORDER BY e.produto;
+            END IF;
+        END;
+    $$ LANGUAGE plpgsql;
+
+SELECT * FROM selecionar_produto_em_estoque();
+SELECT * FROM selecionar_produto_em_estoque('abacate');
