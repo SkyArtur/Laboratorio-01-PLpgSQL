@@ -57,4 +57,170 @@ Será necessário definir o servidor do banco de dados, clique [aqui](markdown/p
 
 ## Tabelas
 
+Como proposta para este exercício, vamos criar três tabelas e estabeleceremos relações entre elas. Teremos uma 
+tabela principal (*estoque*) e outras duas secundárias (*produtos* e *vendas*) que se relacionaram diretamente com o estoque,
+mas não se relacionarão diretamente entre si.
+```sql
+CREATE TABLE estoque (
+    produto VARCHAR(255) PRIMARY KEY,
+    quantidade INTEGER,
+    custo NUMERIC(11, 2),
+    lucro NUMERIC,
+    data DATE
+);
+
+CREATE TABLE produtos (
+    nome VARCHAR(255) PRIMARY KEY,
+    preco NUMERIC(11, 2),
+    FOREIGN KEY (nome)
+        REFERENCES estoque(produto)
+        ON DELETE CASCADE
+);
+
+CREATE TABLE vendas (
+    produto VARCHAR(255) NOT NULL,
+    data DATE DEFAULT CURRENT_DATE,
+    quantidade INTEGER,
+    valor NUMERIC(11, 2),
+    FOREIGN KEY (produto)
+        REFERENCES estoque(produto)
+        ON DELETE CASCADE
+);
+
+```
+
+É interessante perceber que ao estabelecermos um relacionamento entre duas chaves primárias, como ocorre entre *estoque* 
+e *produtos* estamos criando uma relação de um para um, (1:1 ou one-to-one), pois, ambas possui restrição de unicidade
+em suas respectivas colunas. Já na tabela *vendas*, a relação estabelecida diretamente com a tabela *estoque*, e 
+indiretamente com a tabela *produtos*, é de um para muitos (1:N ou ono-to-many), tendo em vista que, mesmo utilizando a 
+coluna 'produto' como uma chave estrangeira, a única restrição que colocamos para ela é de não nulidade. 
+
+## Criando uma lógica reutilizável
+ As linguagens procedurais para banco de dados, além de facilitarem o fluxo do programa, como dito anteriormente, também 
+permitem que, ao elaborarmos uma lógica, ela possa ser reutilizada em outros trechos de código, como em qualquer outra
+linguagem de programação. Vamos então criar uma para calcular o preço a partir da quantidade de produtos comprados, 
+o custo total e a margem de lucro estabelecida.
+
+```sql
+CREATE OR REPLACE FUNCTION calcular_preco(quantidade INTEGER, custo NUMERIC, lucro NUMERIC)
+    RETURNS NUMERIC AS $$
+        DECLARE
+            preco NUMERIC;
+        BEGIN
+            preco :=  custo / quantidade;
+            preco := preco + (preco * (lucro / 100));
+            RETURN ROUND(preco, 2);
+        END;
+    $$ LANGUAGE plpgsql;
+```
+Com esta função registrada em nosso banco de dados, poderemos calcular o preço final do produto quando desejarmos.
+
+## Triggers & funções triggers
+
+Agora, vamos automatizar algumas ações em nosso banco de dados. Começaremos com a inserção de um produto na tabela
+*produtos*, a partir do registro dele no estoque. Para isso vamos utilizar funções que serão disparadas por gatilhos.
+Também vamos implementar a mesma lógica, para quando uma venda for realizada, a quantidade do produto em estoque seja
+atualizada. Vamos começar com o primeiro cenário.
+
+```sql
+CREATE OR REPLACE FUNCTION criar_produto ()
+    RETURNS TRIGGER AS $$
+        BEGIN
+            INSERT INTO produtos (nome, preco)
+                VALUES (NEW.produto, calcular_preco(NEW.quantidade, NEW.custo, NEW.lucro));
+            RETURN NEW;
+        END;
+    $$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_create_produto
+    AFTER INSERT ON estoque
+    FOR EACH ROW
+    EXECUTE FUNCTION criar_produto();
+```
+Com estes dispositivos, toda a vez que inserirmos um novo produto no *estoque*, ele será registrado em *produtos*, observe
+como utilizamos a nossa função **calcular_preco()** para deixar o nosso código mais claro.
+
+Para o cenário seguinte, precisaremos realizar um UPDATE em *estoque* a partir da inserção de dados em *vendas*, mas isso
+não representará uma dificuldade maior, observe:
+
+```sql
+CREATE OR REPLACE FUNCTION atualizar_quantidade_em_estoque()
+    RETURNS TRIGGER AS $$
+        BEGIN
+            UPDATE estoque
+                SET quantidade = quantidade - NEW.quantidade
+                WHERE produto = NEW.produto;
+            RETURN NEW;
+        END;
+    $$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_quantidade_em_estoque
+    AFTER INSERT ON vendas
+    FOR EACH ROW
+    EXECUTE FUNCTION atualizar_quantidade_em_estoque();
+```
+Pronto, lógica implementada, agora vamos seguir adiante.
+
+## Tratamento de exceções
+
+Definimos em nossa tabela *estoque*, que a coluna 'produto', seria uma chave primária. Isso confere a ela uma unicidade, 
+de modo que não haverá outro registro com o mesmo conteúdo, na coluna em questão, na nossa tabela do banco de dados. Porém, 
+se o programa que for utilizar o nosso banco de dados, tentar realizar a operação descrita acima, um erro será emitido 
+pelo nosso banco. Se imaginarmos que esse erro, poderá gerar problemas de execução mais a frente, seria inteligente de nossa
+parte, tomarmos alguma precaução desde agora e ao invés de permitir um erro, retornarmos um valor que possa ser computado, 
+como um booleano, por exemplo. 
+```sql
+CREATE OR REPLACE FUNCTION registrar_produto_no_estoque(_produto VARCHAR, _quantidade INTEGER, _custo NUMERIC, _lucro NUMERIC, _data DATE)
+    RETURNS BOOLEAN AS $$
+        BEGIN
+            INSERT INTO estoque (produto, quantidade, custo, lucro, data)
+                VALUES (_produto, _quantidade, _custo, _lucro, _data);
+            RETURN TRUE;
+        EXCEPTION
+            WHEN others
+                THEN
+                    RETURN FALSE;
+        END;
+    $$ LANGUAGE plpgsql;
+```
+Agora poderemos, inclusive, realizar alguns testes que nos permitirão verificar se nosso gatilho para a criação de um
+registro na tabela *produtos*, a partir de outro na tabela *estoque*, está funcionando.
+```shell
+laboratorio=# SELECT * FROM registrar_produto_no_estoque('abacate', 100, 100, 10, '2024-03-21');
+ registrar_produto_no_estoque
+------------------------------
+ true
+(1 registro)
+```
+Se tentarmos novamente a mesma inserção receberemos false
+```shell
+laboratorio=# SELECT * FROM registrar_produto_no_estoque('abacate', 100, 100, 10, '2024-03-21');
+ registrar_produto_no_estoque
+------------------------------
+ false
+(1 registro)
+```
+E somente um registro foi gerado em *estoque*.
+```shell
+laboratorio=# SELECT * FROM estoque;
+ produto | quantidade | custo  | lucro |    data
+---------+------------+--------+-------+------------
+ abacate |        100 | 100.00 |    10 | 2024-03-21
+(2 registros)
+
+```
+Também foi criado um registro em *produtos*.
+```shell
+laboratorio=# SELECT * FROM produtos;
+  nome   | preco
+---------+-------
+ abacate |  1.10
+(2 registros)
+```
+
+## Declarando e utilizando variáveis
+
+Ótimo! Agora vamos realizar uma inserção em vendas para verificar a nossa lógica de atualização de estoque. Aqui nós vamos
+trabalhar com variáveis e recuperação de dados. Vamos conhecer também o sinal de atribuição utilizado em PL/pgSQL.
+
 <hr/>

@@ -10,7 +10,7 @@ DROP TABLE estoque;
 ---------------------------------------------------------------------------------------------------------------------*/
 
 CREATE TABLE estoque (
-    produto VARCHAR(255) UNIQUE NOT NULL PRIMARY KEY,
+    produto VARCHAR(255) PRIMARY KEY,
     quantidade INTEGER,
     custo NUMERIC(11, 2),
     lucro NUMERIC,
@@ -18,7 +18,7 @@ CREATE TABLE estoque (
 );
 
 CREATE TABLE produtos (
-    nome VARCHAR NOT NULL UNIQUE PRIMARY KEY,
+    nome VARCHAR(255) PRIMARY KEY,
     preco NUMERIC(11, 2),
     FOREIGN KEY (nome)
         REFERENCES estoque(produto)
@@ -26,7 +26,7 @@ CREATE TABLE produtos (
 );
 
 CREATE TABLE vendas (
-    produto VARCHAR NOT NULL,
+    produto VARCHAR(255) NOT NULL,
     data DATE DEFAULT CURRENT_DATE,
     quantidade INTEGER,
     valor NUMERIC(11, 2),
@@ -115,7 +115,7 @@ CREATE OR REPLACE FUNCTION registrar_produto_no_estoque(_produto VARCHAR, _quant
     $$ LANGUAGE plpgsql;
 
 /*########           TESTES           ########*/
-SELECT * FROM registrar_produto_no_estoque('banana', 100, 100, 10, '2024-03-21');
+SELECT * FROM registrar_produto_no_estoque('abacate', 100, 100, 10, '2024-03-21');
 
 SELECT * FROM estoque;
 
