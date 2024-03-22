@@ -60,6 +60,31 @@ CREATE TRIGGER trigger_create_produto
     EXECUTE FUNCTION criar_produto();
 
 /*---------------------------------------------------------------------------------------------------------------------
+                                    FUNÇÃO TRIGGER atualizar_quantidade_em_estoque
+---------------------------------------------------------------------------------------------------------------------*/
+CREATE OR REPLACE FUNCTION atualizar_quantidade_em_estoque()
+    RETURNS TRIGGER AS $$
+        DECLARE
+            _produto VARCHAR;
+        BEGIN
+            SELECT nome INTO _produto FROM produtos WHERE id = NEW.produto;
+            UPDATE estoque
+                SET quantidade = quantidade - NEW.quantidade
+                WHERE produto = _produto;
+            RETURN NEW;
+        END;
+    $$ LANGUAGE plpgsql;
+
+/*---------------------------------------------------------------------------------------------------------------------
+                                    TRIGGER trigger_quantidade_em_estoque
+---------------------------------------------------------------------------------------------------------------------*/
+
+CREATE TRIGGER trigger_quantidade_em_estoque
+    AFTER INSERT ON vendas
+    FOR EACH ROW
+    EXECUTE FUNCTION atualizar_quantidade_em_estoque();
+
+/*---------------------------------------------------------------------------------------------------------------------
                                     FUNÇÃO calcular_preco
 ---------------------------------------------------------------------------------------------------------------------*/
 
@@ -107,5 +132,39 @@ SELECT e.produto, e.quantidade, e.custo, e.lucro, p.preco
     ON e.produto = p.nome;
 
 /*---------------------------------------------------------------------------------------------------------------------
-                                    FUNÇÃO registrar_produto_no_estoque
+                                    FUNÇÃO registrar_venda
 ---------------------------------------------------------------------------------------------------------------------*/
+
+CREATE OR REPLACE FUNCTION registrar_venda(_produto INTEGER, _quantidade INTEGER)
+    RETURNS BOOLEAN AS $$
+        DECLARE
+            existe BOOLEAN;
+            _nome VARCHAR;
+            _preco NUMERIC;
+        BEGIN
+            SELECT nome, preco INTO _nome, _preco FROM produtos WHERE id = _produto;
+            SELECT TRUE INTO existe FROM estoque WHERE produto = _nome AND quantidade >= _quantidade;
+            IF existe
+                THEN
+                    INSERT INTO vendas (produto, quantidade, valor)
+                        VALUES (_produto, _quantidade, (_quantidade * _preco));
+                    RETURN TRUE;
+            END IF;
+            RETURN FALSE;
+        END;
+    $$ LANGUAGE plpgsql;
+
+/*########           TESTES           ########*/
+SELECT * FROM registrar_venda(1, 92);
+
+SELECT * FROM produtos;
+
+SELECT p.nome as "produto", v.data, v.quantidade, v.valor
+    FROM vendas as v
+    JOIN produtos as p
+    ON v.produto = p.id;
+
+SELECT e.produto, e.quantidade, e.custo, e.lucro, p.preco
+    FROM estoque as e
+    JOIN produtos as p
+    ON e.produto = p.nome;
