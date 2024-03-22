@@ -378,4 +378,54 @@ laboratorio=# SELECT p.nome as "produto", v.data, v.quantidade, v.valor FROM ven
 (2 registros)
 ```
 
+## Deixando de digitar o mesmo toda a vez
+
+Nos nossos testes anteriores, utilizamos consultas que possuem um código bem extenso. Precisamos colocar essas consultas
+em uma função para não termos que digitar tudo de novo, o tempo todo.
+
+```sql
+CREATE OR REPLACE FUNCTION selecionar_produto_em_estoque(_produto VARCHAR DEFAULT NULL)
+    RETURNS TABLE (produto VARCHAR, quantidade INTEGER, custo NUMERIC, lucro NUMERIC, preco NUMERIC) AS $$
+        BEGIN
+            IF _produto IS NOT NULL
+                THEN
+                    RETURN QUERY
+                        SELECT e.produto, e.quantidade, e.custo, e.lucro, p.preco
+                            FROM estoque e
+                            JOIN produtos p
+                            ON e.produto = p.nome
+                        WHERE e.produto = _produto;
+            ELSE
+                RETURN QUERY
+                    SELECT e.produto, e.quantidade, e.custo, e.lucro, p.preco
+                        FROM estoque e
+                        JOIN produtos p
+                        ON e.produto = p.nome
+                    ORDER BY e.produto;
+            END IF;
+        END;
+    $$ LANGUAGE plpgsql;
+```
+
+Agora podemos realizar nossa consulta em todos os produtos, ou pelo nome, apenas chamando a função e passando ou não
+o nome do produto que desejamos consultar: 
+
+```shell
+laboratorio=# SELECT * FROM selecionar_produto_em_estoque();
+ produto | quantidade | custo  | lucro | preco
+---------+------------+--------+-------+-------
+ abacate |         91 | 100.00 |    10 |  1.10
+ banana  |         84 | 100.00 |    10 |  1.10
+ laranja |        392 | 750.00 |    35 |  2.03
+(3 registros)
+```
+```shell
+laboratorio=# SELECT * FROM selecionar_produto_em_estoque('laranja');
+ produto | quantidade | custo  | lucro | preco
+---------+------------+--------+-------+-------
+ laranja |        392 | 750.00 |    35 |  2.03
+(1 registro)
+```
+
+
 <hr/>

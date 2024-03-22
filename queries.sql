@@ -1,6 +1,7 @@
 /*---------------------------------------------------------------------------------------------------------------------
                                     EXCLUSÕES
 ---------------------------------------------------------------------------------------------------------------------*/
+
 DROP TABLE vendas;
 DROP TABLE produtos;
 DROP TABLE estoque;
@@ -60,6 +61,7 @@ CREATE TRIGGER trigger_create_produto
 /*---------------------------------------------------------------------------------------------------------------------
                                     FUNÇÃO TRIGGER atualizar_quantidade_em_estoque
 ---------------------------------------------------------------------------------------------------------------------*/
+
 CREATE OR REPLACE FUNCTION atualizar_quantidade_em_estoque()
     RETURNS TRIGGER AS $$
         BEGIN
@@ -100,6 +102,7 @@ SELECT * FROM calcular_preco(100, 100, 50);
 /*---------------------------------------------------------------------------------------------------------------------
                                     FUNÇÃO calcular_valor_da_venda
 ---------------------------------------------------------------------------------------------------------------------*/
+
 CREATE OR REPLACE FUNCTION calcular_valor_da_venda(preco NUMERIC, quantidade INTEGER, desconto NUMERIC DEFAULT NULL)
     RETURNS NUMERIC AS $$
         DECLARE
@@ -116,6 +119,7 @@ CREATE OR REPLACE FUNCTION calcular_valor_da_venda(preco NUMERIC, quantidade INT
         END;
     $$ LANGUAGE plpgsql;
 
+/*########           TESTES           ########*/
 SELECT * FROM calcular_valor_da_venda(1.5, 2);
 /*---------------------------------------------------------------------------------------------------------------------
                                     FUNÇÃO registrar_produto_no_estoque
@@ -172,18 +176,25 @@ CREATE OR REPLACE FUNCTION registrar_venda(_produto VARCHAR, _quantidade INTEGER
 
 /*########           TESTES           ########*/
 SELECT * FROM registrar_venda('laranja', 24);
+
 SELECT * FROM registrar_venda('laranja', 24, 7);
 
+SELECT p.nome as "produto", v.data, v.quantidade, v.valor
+    FROM vendas as v
+    JOIN produtos as p
+    ON v.produto = p.nome
+WHERE v.produto = 'laranja';
 
-SELECT p.nome as "produto", v.data, v.quantidade, v.valor FROM vendas as v JOIN produtos as p ON v.produto = p.nome WHERE v.produto = 'laranja';
-
-SELECT e.produto, e.quantidade, e.custo, e.lucro, p.preco FROM estoque as e JOIN produtos as p ON e.produto = p.nome WHERE produto = 'laranja';
-
-SELECT * FROM selecionar_produto_em_estoque('abacate');
+SELECT e.produto, e.quantidade, e.custo, e.lucro, p.preco
+    FROM estoque as e
+    JOIN produtos as p
+    ON e.produto = p.nome
+WHERE produto = 'laranja';
 
 /*---------------------------------------------------------------------------------------------------------------------
                                     FUNÇÃO selecionar_produto_em_estoque
 ---------------------------------------------------------------------------------------------------------------------*/
+
 CREATE OR REPLACE FUNCTION selecionar_produto_em_estoque(_produto VARCHAR DEFAULT NULL)
     RETURNS TABLE (produto VARCHAR, quantidade INTEGER, custo NUMERIC, lucro NUMERIC, preco NUMERIC) AS $$
         BEGIN
@@ -206,5 +217,7 @@ CREATE OR REPLACE FUNCTION selecionar_produto_em_estoque(_produto VARCHAR DEFAUL
         END;
     $$ LANGUAGE plpgsql;
 
+/*########           TESTES           ########*/
 SELECT * FROM selecionar_produto_em_estoque();
-SELECT * FROM selecionar_produto_em_estoque('abacate');
+
+SELECT * FROM selecionar_produto_em_estoque('laranja');
