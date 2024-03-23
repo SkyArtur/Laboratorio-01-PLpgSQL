@@ -57,7 +57,7 @@ PGADMIN_DEFAULT_EMAIL e PGADMIN_DEFAULT_PASSWORD.
 
 Será necessário definir o servidor do banco de dados, neste [link](markdown/pgadmin.md) eu vou deixar um pequeno tutorial de como fazer isso. 
 
-## Tabelas
+## Começando com as tabelas
 
 Como proposta para este exercício, vamos criar três tabelas e estabeleceremos relações entre elas. Teremos uma 
 tabela principal (*estoque*) e outras duas secundárias (*produtos* e *vendas*). As tabelas *produtos* e *vendas*, 
@@ -93,18 +93,25 @@ CREATE TABLE vendas (
 );
 ```
 
-Perceba que ao estabelecermos um relacionamento entre duas chaves primárias, como ocorre entre *estoque* 
+Ao estabelecermos um relacionamento entre duas chaves primárias, como ocorre entre *estoque* 
 e *produtos*, estamos criando uma relação de um para um(1:1 ou one-to-one), pois, ambas possui restrição de unicidade
-em suas respectivas colunas. Já na tabela *vendas*, a relação estabelecida diretamente com a tabela *estoque*, e 
+em suas respectivas colunas. Já na tabela *vendas*, a relação estabelecida diretamente com a tabela *estoque* e 
 indiretamente com a tabela *produtos*, é de um para muitos (1:N ou ono-to-many). Desta forma,
-poderemos ter vários registros em vendas, relacionados a um único produto.
+poderemos ter vários registros de vendas, relacionados a um único produto.
 
-## Criando lógicas reutilizáveis
+## Criando lógicas reutilizáveis e declarando variáveis
 
- As linguagens procedurais para banco de dados, além de facilitarem o fluxo de programas, como dito anteriormente, também 
-permitem que, ao elaborarmos uma lógica, ela possa ser reutilizada em outros trechos de código. Vamos então criar uma lógica
- para calcular o preço final do produto a partir da quantidade de produtos adquiridos para estoque, o custo total da aquisição 
- e a margem de lucro estabelecida.
+Podemos definir variáveis como nomes que referenciam dados armazenados em memória. Elas são amplamente utilizadas na 
+programação e a forma de se trabalhar com elas, pode variar. Em PL/pgSQL, temos algumas particularidades, como:
+- elas precisam ser declaradas e tipadas previamente;
+- geralmente utiliza-se o sinal de igual (=) para realizar uma atribuição de valores, mas, como a linguagem SQL utiliza
+ele como operador de comparação, para se realizar uma atribuição em variável, vamos acrescentar o 'dois pontos'(:) antes
+do sinal de igual desta forma(:=);
+
+Outra vantagem das linguagens procedurais para banco de dados, é que elas nos permite elaborar lógicas que possam ser reutilizadas.
+Vamos criar duas, uma para calcular o preço final do produto a partir da quantidade de produtos adquiridos pelo estoque,
+o custo total da aquisição e a margem de lucro estabelecida, e outra que fará o cálculo do valor da venda
+com base no preço unitário do produto, a quantidade vendida e o desconto, se este último for oferecido.
 
 ```sql
 CREATE OR REPLACE FUNCTION calcular_preco(quantidade INTEGER, custo NUMERIC, lucro NUMERIC)
@@ -118,9 +125,6 @@ CREATE OR REPLACE FUNCTION calcular_preco(quantidade INTEGER, custo NUMERIC, luc
         END;
     $$ LANGUAGE plpgsql;
 ```
-
-Também vamos desenvolver uma função para calcular o valor de uma venda com base na quantidade vendida e no desconto
-atribuído.
 
 ```sql
 CREATE OR REPLACE FUNCTION calcular_valor_da_venda(preco NUMERIC, quantidade INTEGER, desconto NUMERIC DEFAULT NULL)
@@ -141,7 +145,10 @@ CREATE OR REPLACE FUNCTION calcular_valor_da_venda(preco NUMERIC, quantidade INT
 ```
 
 Ótimo! Agora temos códigos que nos auxiliarão mais adiante. Perceba que na função calcular_valor_da_venda(), temos um 
-parâmetro que declaramos com um valor DEFAULT NULL e como utilizamos ele para realizar calculos diferentes. 
+parâmetro declarado com um valor DEFAULT NULL. Isso dará flexibilidade a função que poderá ou não aplicar um desconto 
+ao valor de venda do produto.
+
+### Testes
 
 Vamos calcular o preço final de 100 unidades de um produto, com o custo de 100 reais e com uma margem de lucro de 50% por
 unidade:
@@ -154,8 +161,8 @@ laboratorio=# SELECT * FROM calcular_preco(100, 100, 50);
 (1 registro)
 ```
 
-Agora, vamos calcular o valor da venda de 2 unidade de um produto com o preço de 1,50 reais, primeiramente, sem desconto 
-e em seguida com 5% de desconto:
+Agora, vamos calcular o valor da venda de 2 unidade de um produto com o preço de 1,50 a unidade. Primeiramente
+não aplicaremos um desconto e em seguida, daremos um desconto de 5%:
 
 ```shell
 laboratorio=# SELECT * FROM calcular_valor_da_venda(1.5, 2);
@@ -175,12 +182,10 @@ laboratorio=# SELECT * FROM calcular_valor_da_venda(1.5, 2, 5);
 
 Tudo funcionando até aqui, vamos seguir adiante.
 
-## Triggers & funções triggers
+## Engatilhando e disparando funções
 
-Agora vamos automatizar algumas ações em nosso banco de dados. Começaremos com a inserção de um produto na tabela
-*produtos* a partir do registro dele no estoque. Para isso vamos utilizar funções que serão disparadas por gatilhos.
-Também vamos implementar a mesma lógica para *vendas*. Quando uma venda for realizada, a quantidade de produtos vendidos
-será retirada do estoque. Vamos começar com o primeiro cenário.
+Agora vamos automatizar algumas ações em nosso banco de dados com triggers. Começaremos com a inserção de um produto na tabela
+*produtos* a partir do registro dele em *estoque*. Vejamos como ficará nossa função e nosso gatilho.
 
 ```sql
 CREATE OR REPLACE FUNCTION criar_produto ()
@@ -198,11 +203,7 @@ CREATE TRIGGER trigger_create_produto
     EXECUTE FUNCTION criar_produto();
 ```
 
-Com estes dispositivos, toda a vez que inserirmos um novo produto no *estoque*, ele será registrado em *produtos*, observe
-como utilizamos a nossa função **calcular_preco()** para deixar o nosso código mais claro.
-
-Para o cenário seguinte, precisaremos realizar um UPDATE em *estoque* a partir da inserção de dados em *vendas*, mas isso
-não representará uma dificuldade maior, observe:
+Já criamos uma forma de criar um registro automático em *produtos*. Vamos trabalhar em nosso *estoque*.
 
 ```sql
 CREATE OR REPLACE FUNCTION atualizar_quantidade_em_estoque()
@@ -221,16 +222,16 @@ CREATE TRIGGER trigger_quantidade_em_estoque
     EXECUTE FUNCTION atualizar_quantidade_em_estoque();
 ```
 
-Pronto, lógica implementada, vamos em frente.
+Com estes dispositivos, teremos a atualização do estoque quando uma venda for realizada.
 
 ## Tratamento de exceções
 
 Definimos em nossa tabela *estoque* que a coluna 'produto' seria uma chave primária. Isso confere a ela uma unicidade, 
-de modo que não haverá outro registro com o mesmo conteúdo na coluna em questão, em nossa tabela *produtos*. Porém, 
-se o programa que for utilizar o nosso banco de dados, tentar realizar a operação descrita acima, um erro será emitido 
-pelo nosso banco. Se imaginarmos que esse erro poderá gerar problemas de execução mais a frente, seria inteligente de nossa
-parte, tomarmos alguma precaução desde agora. Por isso, ao invés de permitir que uma exceção seja levantada, vamos 
-retornar um valor que possa ser computado, como um booleano, por exemplo. 
+de modo que não haverá outro registro com o mesmo conteúdo em nossa tabela *produtos*. Porém, 
+se o programa que for utilizar o nosso banco de dados, tentar realizar a operação descrita acima?
+
+Isso levantara um erro ou exceção, o que poderá causar a 'quebra' que estiver consumindo o nosso banco de dados. Vamos
+tratar essa exceção e retornar um valor booleano que nosso programa poderá utilizar.
 
 ```sql
 CREATE OR REPLACE FUNCTION registrar_produto_no_estoque(_produto VARCHAR, _quantidade INTEGER, _custo NUMERIC, _lucro NUMERIC, _data DATE)
@@ -247,7 +248,9 @@ CREATE OR REPLACE FUNCTION registrar_produto_no_estoque(_produto VARCHAR, _quant
     $$ LANGUAGE plpgsql;
 ```
 
-Agora podemos, inclusive, realizar alguns testes para verificar se nosso gatilho está funcionando.
+### Testes
+
+Agora podemos, inclusive, realizar alguns testes para verificar se nossos gatilhos estão funcionando.
 
 ```shell
 laboratorio=# SELECT * FROM registrar_produto_no_estoque('abacate', 100, 100, 10, '2024-03-21');
@@ -288,11 +291,12 @@ laboratorio=# SELECT * FROM produtos;
 (2 registros)
 ```
 
-## Declarando e utilizando variáveis
+Tudo indo bem até o momento, vamos em frente.
 
-Precisamos realizar alguns registros em vendas para testarmos se a lógica que implementamos anteriormente está funcionando.
-Lembre-se que, toda a vez que uma venda for registrada, a quantidade de produto vendida, será decrementada do estoque. Porém,
-não queremos que a venda seja registrada se não houver uma quantidade de produto suficiente para cobrir o pedido. Uma forma
+## Registrando uma venda se houver produto
+
+Toda a vez que uma venda for registrada, a quantidade de produto vendida será decrementada do estoque. Porém,
+não queremos que a venda seja registrada se não houverem produtos suficientes para cobrir o pedido. Uma forma
 de realizar esta verificação seria realizar uma busca pelo produto no estoque, verificar se a quantidade disponível é suficiente 
 para cobrir a venda e atribuir um valor booleano em uma variável que servirá de condição para a realização do registro em
 *vendas*. Vejamos como podemos fazer isso:
@@ -324,15 +328,14 @@ CREATE OR REPLACE FUNCTION registrar_venda(_produto VARCHAR, _quantidade INTEGER
     $$ LANGUAGE plpgsql;
 ```
 
-Nesta função, recebemos como parâmetros, o produto, a quantidade e o desconto, pode ou não ser atribuído. 
+Nesta função, recebemos como parâmetros, o produto, a quantidade e o desconto, este último pode ou não ser atribuído. 
 Declaramos duas variáveis onde armazenaremos os dados referentes ao produto de que se trata a venda. Realizamos uma 
 consulta e utilizamos a cláusula INTO para fazer as atribuições que necessitamos. Como temos tabelas que se relacionam 
 entre si (*estoque* e *produtos*), fazemos um JOIN entre as duas para estabelecermos uma correspondência entre os 
 atributos que recebemos e os dados que temos em nosso banco de dados. Em seguida, condicionamos o registro em vendas em 
 bloco IF, retornando TRUE se a ação for executada com sucesso ou FALSE caso o bloco if não seja executado.
 
-Talvez esta seja a mais complicada função entre os nossos execícios. Vamos realizar alguns testes para verificar se temos
-tudo funcionando como esperamos. 
+### Testes
 
 Primeiro vamos realizar uma consulta no produto para verificarmos seus dados em estoque.
 
@@ -385,10 +388,11 @@ laboratorio=# SELECT p.nome as "produto", v.data, v.quantidade, v.valor FROM ven
 (2 registros)
 ```
 
-## Deixando de digitar o mesmo código toda a vez
+## Consultando com inteligência
 
 Nos nossos testes anteriores, utilizamos consultas que possuem um código bem extenso. Precisamos colocar essas consultas
-em uma função para não termos que digitar tudo de novo, o tempo todo.
+em uma função para não termos que digitar tudo de novo, o tempo todo. Nossas funções deverão retornar uma tabela, e poderão
+realizar consultas gerais ou específicas.
 
 ```sql
 CREATE OR REPLACE FUNCTION selecionar_produto_em_estoque(_produto VARCHAR DEFAULT NULL)
@@ -413,6 +417,7 @@ CREATE OR REPLACE FUNCTION selecionar_produto_em_estoque(_produto VARCHAR DEFAUL
         END;
     $$ LANGUAGE plpgsql;
 ```
+### Tetes
 
 Agora podemos realizar nossa consulta em todos os produtos, ou pelo nome, apenas chamando a função e passando ou não
 o nome do produto que desejamos consultar: 
@@ -434,9 +439,7 @@ laboratorio=# SELECT * FROM selecionar_produto_em_estoque('laranja');
 (1 registro)
 ```
 
-Seguindo o mesmo padrão lógico, vamos deixar implementado algumas consultas para as vendas de produtos ou de um produto,
-e uma consulta para o produto disponível a venda, tendo em vista que o comprador não precisa ter informações como custo, 
-margem de lucro, etc.
+Seguindo o mesmo padrão lógico, vamos implementar outras consultas pertinentes as nossas operações.
 
 ```sql
 CREATE OR REPLACE FUNCTION selecionar_vendas(_produto VARCHAR DEFAULT NULL)
@@ -478,11 +481,10 @@ CREATE OR REPLACE FUNCTION selecionar_produto_para_venda(_produto VARCHAR DEFAUL
 ## Sem UPDATE não tem CRUD
 
 Precisamos realizar algumas atualizações em nosso estoque. Como estamos utilizando a coluna 'produto' como chave primária,
-e referenciamos ela nas demais tabelas com uma cláusula CASCADE para atualização, não precisamos nos preocupar com a atualização
+e referenciamos ela nas demais tabelas com uma cláusula CASCADE para atualização, não precisamos nos preocupar com o UPDATE
 do nome do produto. A quantidade de produtos em estoque não reflete diretamente ao preço do produto, mas o custo total e 
 a margem de lucro sim. Vamos implementar uma função que permita atualizar vários atributos de nosso estoque, inclusive
-o preço de revenda do produto. Vamos utilizar parâmetros pré-definidos para que nossa função possa ter uma dinamicidade
-maior.
+o preço de revenda do produto. 
 
 ```sql
 CREATE OR REPLACE FUNCTION atualizar_dados_estoque_e_produto(_produto VARCHAR, _quantidade INTEGER DEFAULT NULL, _custo NUMERIC DEFAULT NULL, _lucro NUMERIC DEFAULT NULL)
@@ -525,6 +527,8 @@ CREATE OR REPLACE FUNCTION atualizar_dados_estoque_e_produto(_produto VARCHAR, _
         END;
     $$ LANGUAGE plpgsql;
 ```
+
+### Testes
 
 Vamos realizar algumas atualizações no nosso abacate.
 
@@ -584,7 +588,7 @@ Nossas tabelas possuem relações específicas e uma ação de excluir um regist
 Definimos que o DELETE em produtos será executado em modo CASCADE, mas o mesmo não irá acontecer em vendas. Isso porque, 
 mesmo que o produto não seja mais vendido na "lojinha", poderia ser interessante manter os registros de vendas.
 
-A exclusão de um registro poderiam ser feito por uma simples query SQL, porém, como iremos utilizar este banco de dados
+A exclusão de um registro poderia ser feita por uma simples query SQL, porém, como iremos utilizar este banco de dados
 em aplicações futuras, vamos criar uma função para realizar o DELETE, até mesmo, para não quebrarmos o padrão que estamos utilizando.
 
 ```sql
@@ -604,6 +608,8 @@ CREATE OR REPLACE FUNCTION deletar_produto(_product VARCHAR)
         END;
     $$ LANGUAGE plpgsql;
 ```
+
+### Testes
 
 Vamos realizar os testes para verificar como a ação de excluir um produto se propaga pelo nosso banco de dados.
 Primeiramente, vamos observar os registros do produto em nossas tabelas de *estoque*, *produtos* e *vendas*.
