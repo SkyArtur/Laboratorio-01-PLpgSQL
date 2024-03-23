@@ -124,6 +124,7 @@ CREATE OR REPLACE FUNCTION calcular_valor_da_venda(preco NUMERIC, quantidade INT
 
 /*########           TESTES           ########*/
 SELECT * FROM calcular_valor_da_venda(1.5, 2);
+
 /*---------------------------------------------------------------------------------------------------------------------
                                     FUNÇÃO registrar_produto_no_estoque
 ---------------------------------------------------------------------------------------------------------------------*/
@@ -190,18 +191,6 @@ SELECT * FROM registrar_venda('abacate', 8);
 SELECT * FROM registrar_venda('abacate', 6);
 SELECT * FROM registrar_venda('abacate', 4);
 SELECT * FROM registrar_venda('abacate', 3);
-
-SELECT p.nome as "produto", v.data, v.quantidade, v.valor
-    FROM vendas as v
-    JOIN produtos as p
-    ON v.produto = p.nome
-WHERE v.produto = 'laranja';
-
-SELECT e.produto, e.quantidade, e.custo, e.lucro, p.preco
-    FROM estoque as e
-    JOIN produtos as p
-    ON e.produto = p.nome
-WHERE produto = 'laranja';
 
 /*---------------------------------------------------------------------------------------------------------------------
                                     FUNÇÃO selecionar_produto_em_estoque
@@ -360,4 +349,3 @@ SELECT * FROM selecionar_produto_para_venda();
 SELECT * FROM selecionar_vendas();
 SELECT * FROM deletar_produto('morango');
 
-SELECT * FROM vendas;
