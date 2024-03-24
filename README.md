@@ -3,7 +3,9 @@
 # Laboratório PostgreSQL & PL/pgSQL
 
 <hr/>
+
 [Laboratório 02 - Python - Conectando com o banco de dados.](https://github.com/SkyArtur/Laboratorio-01-PLpgSQL)
+
 <hr/>
 
 O PostgreSQL&copy; é um poderoso sistema de gerenciamento de banco de dados relacional de código aberto. Ele também é conhecido 
