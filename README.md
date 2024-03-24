@@ -2,6 +2,10 @@
 
 # Laboratório PostgreSQL & PL/pgSQL
 
+<hr/>
+[Laboratório 02 - Python - Conectando com o banco de dados.](https://github.com/SkyArtur/Laboratorio-01-PLpgSQL)
+<hr/>
+
 O PostgreSQL&copy; é um poderoso sistema de gerenciamento de banco de dados relacional de código aberto. Ele também é conhecido 
 por sua confiabilidade, extensibilidade e conformidade com os padrões SQL. Ele suporta uma ampla variedade de tipos de dados, 
 incluindo tipos personalizados, e oferece recursos avançados como transações ACID, replicação, indexação avançada e 
@@ -735,9 +739,5 @@ Ufa!
 
 Foi um caminho longo até aqui, mas acho que temos uma base de dados boa para nossas experiências futuras.
 Nossos próximos passos consistirão em desenvolver aplicações que consumam o banco de dados que acabamos de criar.
-
-Até lá!
-
-[Laboratório 02 - Python - Conectando com o banco de dados.](https://github.com/SkyArtur/Laboratorio-01-PLpgSQL)
 
 <hr/>
