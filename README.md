@@ -1,10 +1,10 @@
 <hr/>
 
-# Laboratório PostgreSQL & PL/pgSQL
+# Laboratório 01 - Trabalhando com PostgreSQL e PL/pgSQL.
 
 <hr/>
 
-[Laboratório 02 - Python - Conectando com o banco de dados.](https://github.com/SkyArtur/Laboratorio-01-PLpgSQL)
+[Laboratório 02 - Conectando com o banco de dados.](https://github.com/SkyArtur/Laboratorio-01-PLpgSQL)
 
 <hr/>
 
