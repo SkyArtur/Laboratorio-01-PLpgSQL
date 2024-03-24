@@ -56,7 +56,7 @@ CREATE OR REPLACE FUNCTION criar_produto ()
                                     TRIGGER trigger_criar_produto
 ---------------------------------------------------------------------------------------------------------------------*/
 
-CREATE TRIGGER trigger_create_produto
+CREATE TRIGGER trigger_criar_produto
     AFTER INSERT ON estoque
     FOR EACH ROW
     EXECUTE FUNCTION criar_produto();
@@ -76,10 +76,10 @@ CREATE OR REPLACE FUNCTION atualizar_quantidade_em_estoque()
     $$ LANGUAGE plpgsql;
 
 /*---------------------------------------------------------------------------------------------------------------------
-                                    TRIGGER trigger_quantidade_em_estoque
+                                    TRIGGER trigger_atualizar_quantidade_em_estoque
 ---------------------------------------------------------------------------------------------------------------------*/
 
-CREATE TRIGGER trigger_quantidade_em_estoque
+CREATE TRIGGER trigger_atualizar_quantidade_em_estoque
     AFTER INSERT ON vendas
     FOR EACH ROW
     EXECUTE FUNCTION atualizar_quantidade_em_estoque();
