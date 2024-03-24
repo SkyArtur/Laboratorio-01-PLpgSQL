@@ -738,4 +738,6 @@ Nossos próximos passos consistirão em desenvolver aplicações que consumam o 
 
 Até lá!
 
+[Laboratório 02 - Python - Conectando com o banco de dados.](https://github.com/SkyArtur/Laboratorio-01-PLpgSQL)
+
 <hr/>
