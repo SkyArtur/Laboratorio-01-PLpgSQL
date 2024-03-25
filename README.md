@@ -3,6 +3,7 @@
 Laboratórios:
 
 [Laboratório 02 - Conectando com o banco de dados.](https://github.com/SkyArtur/Laboratorio-02-Python)
+[Laboratório 03 - Conectando com o banco de dados com Node JS.](https://github.com/SkyArtur/Laboratorio-03-Node)
 
 <hr/>
 
