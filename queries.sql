@@ -1,12 +1,4 @@
 /*---------------------------------------------------------------------------------------------------------------------
-                                    EXCLUSÕES
----------------------------------------------------------------------------------------------------------------------*/
-
-DROP TABLE vendas;
-DROP TABLE produtos;
-DROP TABLE estoque;
-
-/*---------------------------------------------------------------------------------------------------------------------
                                     TABELAS
 ---------------------------------------------------------------------------------------------------------------------*/
 
@@ -99,9 +91,6 @@ CREATE OR REPLACE FUNCTION calcular_preco(quantidade INTEGER, custo NUMERIC, luc
         END;
     $$ LANGUAGE plpgsql;
 
-/*########           TESTES           ########*/
-SELECT * FROM calcular_preco(100, 100, 50);
-
 /*---------------------------------------------------------------------------------------------------------------------
                                     FUNÇÃO calcular_valor_da_venda
 ---------------------------------------------------------------------------------------------------------------------*/
@@ -122,9 +111,6 @@ CREATE OR REPLACE FUNCTION calcular_valor_da_venda(preco NUMERIC, quantidade INT
         END;
     $$ LANGUAGE plpgsql;
 
-/*########           TESTES           ########*/
-SELECT * FROM calcular_valor_da_venda(1.5, 2);
-
 /*---------------------------------------------------------------------------------------------------------------------
                                     FUNÇÃO registrar_produto_no_estoque
 ---------------------------------------------------------------------------------------------------------------------*/
@@ -141,13 +127,6 @@ CREATE OR REPLACE FUNCTION registrar_produto_no_estoque(_produto VARCHAR, _quant
                     RETURN FALSE;
         END;
     $$ LANGUAGE plpgsql;
-
-/*########           TESTES           ########*/
-SELECT * FROM registrar_produto_no_estoque('abacate', 300, 455, 22, '2024-03-21');
-SELECT * FROM registrar_produto_no_estoque('banana', 250, 265, 25, '2024-03-21');
-SELECT * FROM registrar_produto_no_estoque('morango', 650, 832, 45, '2024-03-21');
-SELECT * FROM registrar_produto_no_estoque('laranja', 250, 440, 15, '2024-03-21');
-SELECT * FROM registrar_produto_no_estoque('tomate', 500, 732, 25, '2024-03-21');
 
 /*---------------------------------------------------------------------------------------------------------------------
                                     FUNÇÃO registrar_venda
@@ -178,20 +157,6 @@ CREATE OR REPLACE FUNCTION registrar_venda(_produto VARCHAR, _quantidade INTEGER
         END;
     $$ LANGUAGE plpgsql;
 
-/*########           TESTES           ########*/
-SELECT * FROM registrar_venda('morango', 20);
-SELECT * FROM registrar_venda('morango', 12);
-SELECT * FROM registrar_venda('morango', 8);
-SELECT * FROM registrar_venda('morango', 8, 5);
-
-SELECT * FROM registrar_venda('banana', 6);
-SELECT * FROM registrar_venda('banana', 18, 7);
-
-SELECT * FROM registrar_venda('abacate', 8);
-SELECT * FROM registrar_venda('abacate', 6);
-SELECT * FROM registrar_venda('abacate', 4);
-SELECT * FROM registrar_venda('abacate', 3);
-
 /*---------------------------------------------------------------------------------------------------------------------
                                     FUNÇÃO selecionar_produto_em_estoque
 ---------------------------------------------------------------------------------------------------------------------*/
@@ -218,11 +183,6 @@ CREATE OR REPLACE FUNCTION selecionar_produto_em_estoque(_produto VARCHAR DEFAUL
         END;
     $$ LANGUAGE plpgsql;
 
-/*########           TESTES           ########*/
-SELECT * FROM selecionar_produto_em_estoque();
-
-SELECT * FROM selecionar_produto_em_estoque('laranja');
-
 /*---------------------------------------------------------------------------------------------------------------------
                                     FUNÇÃO selecionar_vendas
 ---------------------------------------------------------------------------------------------------------------------*/
@@ -246,10 +206,6 @@ CREATE OR REPLACE FUNCTION selecionar_vendas(_produto VARCHAR DEFAULT NULL)
         END;
     $$ LANGUAGE plpgsql;
 
-/*########           TESTES           ########*/
-SELECT * FROM selecionar_vendas('laranja');
-
-
 /*---------------------------------------------------------------------------------------------------------------------
                                     FUNÇÃO selecionar_produto_para_venda
 ---------------------------------------------------------------------------------------------------------------------*/
@@ -269,11 +225,6 @@ CREATE OR REPLACE FUNCTION selecionar_produto_para_venda(_produto VARCHAR DEFAUL
             END IF;
         END;
     $$ LANGUAGE plpgsql;
-
-/*########           TESTES           ########*/
-SELECT * FROM selecionar_produto_para_venda();
-
-SELECT * FROM selecionar_produto_para_venda('abacate');
 
 /*---------------------------------------------------------------------------------------------------------------------
                                     FUNÇÃO atualizar_dados_estoque_e_produto
@@ -319,11 +270,6 @@ CREATE OR REPLACE FUNCTION atualizar_dados_estoque_e_produto(_produto VARCHAR, _
         END;
     $$ LANGUAGE plpgsql;
 
-/*########           TESTES           ########*/
-SELECT * FROM selecionar_produto_em_estoque('abacate');
-
-SELECT * FROM atualizar_dados_estoque_e_produto('abacate', 100, 100, 5 );
-
 /*---------------------------------------------------------------------------------------------------------------------
                                     FUNÇÃO deletar_produto
 ---------------------------------------------------------------------------------------------------------------------*/
@@ -343,9 +289,3 @@ CREATE OR REPLACE FUNCTION deletar_produto(_product VARCHAR)
             END IF;
         END;
     $$ LANGUAGE plpgsql;
-
-SELECT * FROM selecionar_produto_em_estoque();
-SELECT * FROM selecionar_produto_para_venda();
-SELECT * FROM selecionar_vendas();
-SELECT * FROM deletar_produto('morango');
-
