@@ -1,14 +1,6 @@
-<hr/>
-
-Laboratórios:
-
-[Laboratório 02 - Conectando com o banco de dados.](https://github.com/SkyArtur/Laboratorio-02-Python)
-
-[Laboratório 03 - Conectando com o banco de dados com Node JS.](https://github.com/SkyArtur/Laboratorio-03-Node)
-
-<hr/>
-
 # Laboratório 01 - Trabalhando com PostgreSQL e PL/pgSQL.
+
+<hr/>
 
 O PostgreSQL&copy; é um poderoso sistema de gerenciamento de banco de dados relacional de código aberto. Ele também é conhecido 
 por sua confiabilidade, extensibilidade e conformidade com os padrões SQL. Ele suporta uma ampla variedade de tipos de dados, 
@@ -43,7 +35,7 @@ services:
 
   pgadmin4:
     container_name: pgadmin4
-    image: dpage/pgadmin4:8.4
+    image: dpage/pgadmin4:8.5
     restart: always
     environment:
       - PGADMIN_DEFAULT_EMAIL=estudante@email.com
@@ -743,5 +735,13 @@ Ufa!
 
 Foi um caminho longo até aqui, mas acho que temos uma base de dados boa para nossas experiências futuras.
 Nossos próximos passos consistirão em desenvolver aplicações que consumam o banco de dados que acabamos de criar.
+
+<hr/>
+
+Laboratórios:
+
+[Laboratório 02 - Conectando com o banco de dados.](https://github.com/SkyArtur/Laboratorio-02-Python)
+
+[Laboratório 03 - Conectando com o banco de dados com Node JS.](https://github.com/SkyArtur/Laboratorio-03-Node)
 
 <hr/>
